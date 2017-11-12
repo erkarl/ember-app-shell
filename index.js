@@ -51,19 +51,51 @@ module.exports = {
           }
 
           const url = path.join(`http://localhost:${SERVER_PORT}`, visitPath);
+          console.log('url is', url);
 
           const navigate = Page.enable()
             .then(() => Page.navigate({ url }))
             .then(() => Page.loadEventFired());
 
           return navigate
-            .then(() => Runtime.evaluate({ awaitPromise: true, expression: `
-              ${this._appGlobal()}.visit('${visitPath}')
-                .then((application) => {
-                  return document.body.querySelector('.ember-view').outerHTML;
-                });
-            `}))
+            .then(() => {
+              console.log('before evaluate');
+              const success = (asdf) => {
+                console.log('success', asdf);
+                return Runtime.evaluate({ awaitPromise: true, expression: `
+                  /*
+                  'a'
+                  */
+                  // document.body.querySelector('.ember-view').outerHTML;
+                  // console.log(window).toString();
+                  ${this._appGlobal()}.visit('${visitPath}')
+                    .then((application) => {
+                      document.body.querySelector('.ember-view').outerHTML;
+                    }, (e) => { 'error' });
+                `})
+              };
+              const error = (e) => {
+                console.log('ERROR', e);
+              };
+              const global = this._appGlobal();
+              console.log('global is', global);
+              return Runtime.evaluate({ expression: `
+                window['${this._appGlobal()}']['_booted'];
+              `})
+                .then(success, error);
+              /*
+              return Runtime.evaluate({ awaitPromise: true, expression: `
+                new Promise((resolve, reject) => {
+                  window['${this._appGlobal()}'].visit('/app-shell')
+                    .then((successResult) => resolve('succes'), (errorResult) => reject(errorResult.toString()))
+                    .catch((e) => reject('catch', e));
+                }).then((suc) => 'suc', (err) => err);
+              `})
+                .then(success, error);
+              */
+            })
             .then((html) => {
+              console.log('html is', html);
               let indexHTML = fs.readFileSync(path.join(directory, 'index.html')).toString();
               let appShellHTML = indexHTML.replace(PLACEHOLDER, html.result.value.toString());
               let criticalOptions = Object.assign(DEFAULT_CRITICAL_OPTIONS, {
@@ -75,6 +107,7 @@ module.exports = {
               }, this.app.options['ember-app-shell'].criticalCSSOptions);
               return critical.generate(criticalOptions);
             })
+            .catch((err) => { console.log('all errors', err); })
             .then(kill, kill);
         });
       });
