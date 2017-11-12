@@ -58,10 +58,11 @@ module.exports = {
 
           return navigate
             .then(() => Runtime.evaluate({ awaitPromise: true, expression: `
-              ${this._appGlobal()}.visit('${visitPath}')
-                .then((application) => {
-                  return document.body.querySelector('.ember-view').outerHTML;
-                });
+              new Promise((resolve) => {
+                const getOuterHTML = () => resolve(document.body.querySelector('.ember-view').outerHTML);
+                ${this._appGlobal()}.visit('${visitPath}')
+                  .then(getOuterHTML).catch(getOuterHTML);
+              });
             `}))
             .then((html) => {
               let indexHTML = fs.readFileSync(path.join(directory, 'index.html')).toString();
