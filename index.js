@@ -54,16 +54,32 @@ module.exports = {
 
           const navigate = Page.enable()
             .then(() => Page.navigate({ url }))
-            .then(() => Page.loadEventFired());
+            .then(() => Page.addScriptToEvaluateOnLoad({scriptSource: `${this._appGlobal()}.autoboot = false`}))
+            .then(() => Page.loadEventFired())
+            // .then(() => Page.domContentEventFired());
+            /*
+            .then(() => {
+              return new Promise((resolve) => {
+                setTimeout(() => {
+                  console.log('waiting 1s before evaluate');
+                  return resolve();
+                }, 1000);
+              });
+            });
+            */
 
           return navigate
-            .then(() => Runtime.evaluate({ awaitPromise: true, expression: `
+            .then(() => Runtime.evaluate({ expression: `
+              ${this._appGlobal()}.autoboot;
+              /*
               ${this._appGlobal()}.visit('${visitPath}')
                 .then((application) => {
                   return document.body.querySelector('.ember-view').outerHTML;
                 });
+              */
             `}))
             .then((html) => {
+              console.log('html is', html);
               let indexHTML = fs.readFileSync(path.join(directory, 'index.html')).toString();
               let appShellHTML = indexHTML.replace(PLACEHOLDER, html.result.value.toString());
               let criticalOptions = Object.assign(DEFAULT_CRITICAL_OPTIONS, {
@@ -75,6 +91,7 @@ module.exports = {
               }, this.app.options['ember-app-shell'].criticalCSSOptions);
               return critical.generate(criticalOptions);
             })
+            .catch((e) => console.log(e))
             .then(kill, kill);
         });
       });
